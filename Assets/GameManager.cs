@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using DG.Tweening;
 
 
@@ -11,58 +12,42 @@ public class GameManager : MonoBehaviour
     int size_z = 20;
     public bool[,,,] room = new bool[2, 20, 20, 20];
     public int indexBuffer = 1;
-    //bool[,,,] room_now = new bool[2,10, 10, 10];
     public GameObject Cell;
     public List<GameObject> cellsSpawned = new List<GameObject>();
     public Transform cellsParent;
+    bool updating = true;
+    public Text liveText;
+    public Text generationText;
+    int generation = 0;
 
     private void Start()
     {
-        GameObject cell_1 = Instantiate(this.Cell, new Vector3(10, 10, 10), new Quaternion(0, 0, 0, 0), cellsParent);
-        room[0, 10, 10, 10] = true;
-        cellsSpawned.Add(cell_1);
-        GameObject cell_2 = Instantiate(this.Cell, new Vector3(11, 10, 10), new Quaternion(0, 0, 0, 0), cellsParent);
-        room[0, 11, 10, 10] = true;
-        cellsSpawned.Add(cell_2);
-        GameObject cell_3 = Instantiate(this.Cell, new Vector3(9, 10, 10), new Quaternion(0, 0, 0, 0), cellsParent);
-        room[0, 9, 10, 10] = true;
-        cellsSpawned.Add(cell_3);
-        GameObject cell_4 = Instantiate(this.Cell, new Vector3(10, 11, 10), new Quaternion(0, 0, 0, 0), cellsParent);
-        room[0, 10, 11, 10] = true;
-        cellsSpawned.Add(cell_4);
-        GameObject cell_5 = Instantiate(this.Cell, new Vector3(10, 9, 10), new Quaternion(0, 0, 0, 0), cellsParent);
-        room[0, 10, 9, 10] = true;
-        cellsSpawned.Add(cell_5);
-        GameObject cell_6 = Instantiate(this.Cell, new Vector3(10, 10, 11), new Quaternion(0, 0, 0, 0), cellsParent);
-        room[0, 10, 10, 11] = true;
-        cellsSpawned.Add(cell_6);
-
-        /*for (int I = 0; I < 10; I++)
-        {
-            Vector3 position = new Vector3(Random.Range(8, 13), Random.Range(8, 13), Random.Range(8, 13));
-            GameObject cell = Instantiate(this.Cell, position, new Quaternion(0, 0, 0, 0), cellsParent);
-            room[0, (int)position.x, (int)position.y, (int)position.z] = true;
-            cellsSpawned.Add(cell);
-        }*/
-
+        //DesignedGenerator();
+        generation = 1;
+        RandomGenerator();
+        generationText.text = "Generation: " + generation.ToString();
     }
     float elapsed = 0f;
     private void Update()
     {
-        Sequence sequence = DOTween.Sequence();
-
-        elapsed += Time.deltaTime;
-        if (elapsed >= 1f)
+        if (updating)
         {
-            elapsed = elapsed % 1f;
-            UpdateCellsState(sequence);
-            sequence.AppendCallback(() =>
+            Sequence sequence = DOTween.Sequence();
+            elapsed += Time.deltaTime;
+            if (elapsed >= 1f)
             {
-                indexBuffer = 1 - indexBuffer;
-            });
-            DrawCells(indexBuffer, sequence);
+                elapsed = elapsed % 1f;
+                UpdateCellsState(sequence);
+                sequence.AppendCallback(() =>
+                {
+                    indexBuffer = 1 - indexBuffer;
+                    liveText.text = "Lives: " + cellsSpawned.Count.ToString() + "/8000";
+                    generation++;
+                    generationText.text = "Generation: " + generation.ToString();
+                });
+                DrawCells(indexBuffer, sequence);
+            }
         }
-
     }
     void UpdateCellsState(Sequence sequence)//travesal every single cell and update their life state
     {
@@ -92,11 +77,11 @@ public class GameManager : MonoBehaviour
                                 }
                             }
                         }
-                        if (counter == 5)
+                        if (counter == 3)
                         {
                             room[indexBuffer, x, y, z] = true;
                         }
-                        else if (counter == 4)
+                        else if (counter == 2)
                         {
                             room[indexBuffer, x, y, z] = room[1 - indexBuffer, x, y, z];
                         }
@@ -114,7 +99,6 @@ public class GameManager : MonoBehaviour
         sequence.AppendCallback(() =>
         {
             ClearAll();
-
         });
         sequence.AppendCallback(() =>
         {
@@ -150,5 +134,60 @@ public class GameManager : MonoBehaviour
             }
         }
     }
-
+    void RandomGenerator()
+    {
+        for (int I = 0; I < 100; I++)
+        {
+            Vector3 position = new Vector3(Random.Range(8, 12), Random.Range(8, 12), Random.Range(8, 12));
+            GameObject cell = Instantiate(this.Cell, position, new Quaternion(0, 0, 0, 0), cellsParent);
+            room[0, (int)position.x, (int)position.y, (int)position.z] = true;
+            cellsSpawned.Add(cell);
+        }
+        updating = true;
+    }
+    void DesignedGenerator()
+    {
+        bool ifReturn = false;
+        for (int i = 8; i <= 12; i++)
+        {
+            for (int j = 8; j <= 12; j++)
+            {
+                for (int q = 8; q <= 12; q++)
+                {
+                    if (ifReturn)
+                    {
+                        GameObject cell = Instantiate(this.Cell, new Vector3(i, j, q), new Quaternion(0, 0, 0, 0), cellsParent);
+                        room[0, i, j, q] = true;
+                        cellsSpawned.Add(cell);
+                        ifReturn = !ifReturn;
+                    }
+                    else
+                    {
+                        ifReturn = !ifReturn;
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+    public void Reset()
+    {
+        updating = false;
+        for (int x = 1; x <= size_x - 2; x++)
+        {
+            for (int y = 1; y <= size_y - 2; y++)
+            {
+                for (int z = 1; z <= size_z - 2; z++)
+                {
+                    room[0, x, y, z] = false;
+                }
+            }
+        }
+        ClearAll();
+        cellsSpawned.Clear();
+        //DesignedGenerator();
+        RandomGenerator();
+        generation = 1;
+        generationText.text = "Generation: " + generation.ToString();
+    }
 }
